@@ -184,6 +184,11 @@ APK 输出在 `app/build/outputs/apk/debug/app-debug.apk`。如果只想直接�
 
 较大的功能改动建议先开 Issue 讨论，避免方向不一致。
 
+## 贡献者
+
+- [ohSteve](https://github.com/ohSteve)：项目发起人，负责产品设计、开发与维护。
+- [Claude](https://github.com/claude)（Anthropic）：AI 编程助手，参与代码实现、问题排查、技术文档与界面截图整理。
+
 ## 版本记录
 
 各次迭代的详细变化见 [CHANGELOG.md](CHANGELOG.md)，可安装的构建见 [Releases](https://github.com/ohSteve/Fires/releases)。
