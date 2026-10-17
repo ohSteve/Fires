@@ -7,6 +7,7 @@ import com.example.todoapp.TodoApplication
 import com.example.todoapp.data.entity.CheckInItemEntity
 import com.example.todoapp.data.entity.CheckInRecordEntity
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -90,7 +91,9 @@ class CheckInViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun ensureRecords(dateStr: String) {
-        val allItems = items.value
+        // 直接取数据库最新项目列表：items 是 StateFlow（异步更新），
+        // 刚新增的项目在 items.value 中可能还不存在，会导致新项目不生成当日记录、界面不显示
+        val allItems = dao.getAllItems().first()
         val existing = dao.getRecordsForDate(dateStr)
         val existingItemIds = existing.map { it.itemId }.toSet()
 

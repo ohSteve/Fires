@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.todoapp.data.entity.MilestoneEntity
+import com.example.todoapp.ui.components.ReadOnlyTextBlock
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -104,30 +105,46 @@ fun MilestoneSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { if (!readOnly) name = it },
-                label = { Text("已完成的任务名称 *") },
-                placeholder = { Text("任务名称（必填）") },
-                singleLine = true,
-                readOnly = readOnly,
-                enabled = !readOnly,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (readOnly) {
+                ReadOnlyTextBlock(
+                    text = name,
+                    label = "已完成的任务名称",
+                    minHeight = 56.dp,
+                    maxHeight = 120.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("已完成的任务名称 *") },
+                    placeholder = { Text("任务名称（必填）") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = detail,
-                onValueChange = { if (!readOnly) detail = it },
-                label = { Text("已完成的任务具体内容") },
-                placeholder = { Text("具体描述（选填）") },
-                minLines = 2,
-                maxLines = 4,
-                readOnly = readOnly,
-                enabled = !readOnly,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (readOnly) {
+                ReadOnlyTextBlock(
+                    text = detail,
+                    label = "已完成的任务具体内容",
+                    minHeight = 80.dp,
+                    maxHeight = 128.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = detail,
+                    onValueChange = { detail = it },
+                    label = { Text("已完成的任务具体内容") },
+                    placeholder = { Text("具体描述（选填）") },
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -164,31 +181,47 @@ fun MilestoneSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = difficulties,
-                onValueChange = { if (!readOnly) difficulties = it },
-                label = { Text("难点") },
-                placeholder = { Text("遇到的困难（选填）") },
-                minLines = 2,
-                maxLines = 4,
-                readOnly = readOnly,
-                enabled = !readOnly,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (readOnly) {
+                ReadOnlyTextBlock(
+                    text = difficulties,
+                    label = "难点",
+                    minHeight = 80.dp,
+                    maxHeight = 128.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = difficulties,
+                    onValueChange = { difficulties = it },
+                    label = { Text("难点") },
+                    placeholder = { Text("遇到的困难（选填）") },
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = futurePlans,
-                onValueChange = { if (!readOnly) futurePlans = it },
-                label = { Text("未来的计划") },
-                placeholder = { Text("下一步计划（选填）") },
-                minLines = 2,
-                maxLines = 4,
-                readOnly = readOnly,
-                enabled = !readOnly,
-                modifier = Modifier.fillMaxWidth()
-            )
+            if (readOnly) {
+                ReadOnlyTextBlock(
+                    text = futurePlans,
+                    label = "未来的计划",
+                    minHeight = 80.dp,
+                    maxHeight = 128.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = futurePlans,
+                    onValueChange = { futurePlans = it },
+                    label = { Text("未来的计划") },
+                    placeholder = { Text("下一步计划（选填）") },
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             if (!readOnly) {
                 Spacer(modifier = Modifier.height(16.dp))

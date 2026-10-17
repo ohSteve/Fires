@@ -70,6 +70,10 @@ class JournalViewModel(application: Application) : AndroidViewModel(application)
     private val _canEdit = MutableStateFlow(true)
     val canEdit: StateFlow<Boolean> = _canEdit
 
+    // 今日之前的日志默认锁定；经用户双击确认后可临时解锁本次查看
+    private val _pastEditUnlocked = MutableStateFlow(false)
+    val pastEditUnlocked: StateFlow<Boolean> = _pastEditUnlocked
+
     private val _canUpdateUsage = MutableStateFlow(true)
     val canUpdateUsage: StateFlow<Boolean> = _canUpdateUsage
 
@@ -85,6 +89,8 @@ class JournalViewModel(application: Application) : AndroidViewModel(application)
     fun selectDate(dateStr: String) {
         // Force-save current state before switching
         saveNow()
+        // 切换到其他日期后，历史日志重新回到锁定状态
+        _pastEditUnlocked.value = false
         viewModelScope.launch {
             _currentDate.value = dateStr
             loadDateSync(dateStr)
@@ -97,11 +103,13 @@ class JournalViewModel(application: Application) : AndroidViewModel(application)
 
     fun goToToday(onDone: () -> Unit = {}) {
         saveNow()
+        // 切换到其他日期后，历史日志重新回到锁定状态
+        _pastEditUnlocked.value = false
         viewModelScope.launch {
             val today = todayString()
             _currentDate.value = today
-            loadSummary(today)
-            refreshEditState(today)
+            // 必须完整加载该日期的手动笔记与使用时长，否则会把上一个日期的内容带到今天
+            loadDateSync(today)
             onDone()
         }
     }
@@ -163,47 +171,83 @@ class JournalViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Auto-save on every change ---
 
+    /** 仅允许解锁“今天之前”的历史日志做临时修改；未来日期始终锁定 */
+    fun unlockPastEditing() {
+        val date = _currentDate.value
+        if (date >= todayString()) return
+        _pastEditUnlocked.value = true
+    }
+
+    /** 手动笔记类内容的写入守卫：仅当天或已临时解锁的历史日期允许写入 */
+    private fun manualEditAllowed(): Boolean {
+        val date = _currentDate.value
+        val today = todayString()
+        return date == today || (date < today && _pastEditUnlocked.value)
+    }
+
     fun updateNotes(text: String) {
+        if (!manualEditAllowed()) return
         _notes.value = text
         if (text == savedNotes) return
         savedNotes = text
-        viewModelScope.launch { doSave() }
+        doSave()
     }
 
     fun updateEntertainment(text: String) {
+        if (!manualEditAllowed()) return
         _entertainment.value = text
         if (text == savedEntertainment) return
         savedEntertainment = text
-        viewModelScope.launch { doSave() }
+        doSave()
     }
 
     fun updateInstantGratification(value: Boolean) {
+        if (!manualEditAllowed()) return
         _instantGratification.value = value
         if (value == savedInstantGratification) return
         savedInstantGratification = value
-        viewModelScope.launch { doSave() }
+        doSave()
     }
 
     private fun saveNow() {
-        // Synchronously mark all as saved, then async persist
+        // 无实际改动时不做任何写入：数据只应因用户输入而变化，
+        // 纯粹浏览日期不应产生（空的）日志记录
+        if (_notes.value == savedNotes &&
+            _entertainment.value == savedEntertainment &&
+            _instantGratification.value == savedInstantGratification
+        ) return
         savedNotes = _notes.value
         savedEntertainment = _entertainment.value
         savedInstantGratification = _instantGratification.value
-        viewModelScope.launch { doSave() }
+        doSave()
     }
 
-    private suspend fun doSave() {
-        journalDao.upsert(
-            JournalEntry(
-                date = _currentDate.value,
-                notes = _notes.value,
-                entertainment = _entertainment.value,
-                instantGratification = _instantGratification.value,
-                usageMinutes = _usageMinutes.value,
-                usageTopApps = _topApps.value.joinToString("|||") { "${it.first}:::${it.second}" },
-                usageUpdateTime = _usageUpdateTime.value
+    /**
+     * 写入当前日期的日志行。
+     * 日期与内容在调用点同步捕获为快照后再异步落库——
+     * 保证任何情况下都不会把 A 日期的内容写进 B 日期的行。
+     */
+    private fun doSave() {
+        val date = _currentDate.value
+        val notes = _notes.value
+        val entertainment = _entertainment.value
+        val instantGratification = _instantGratification.value
+        val usageMinutes = _usageMinutes.value
+        val usageTopApps = _topApps.value.joinToString("|||") { "${it.first}:::${it.second}" }
+        val usageUpdateTime = _usageUpdateTime.value
+        viewModelScope.launch {
+            journalDao.upsert(
+                JournalEntry(
+                    date = date,
+                    notes = notes,
+                    entertainment = entertainment,
+                    instantGratification = instantGratification,
+                    usageMinutes = usageMinutes,
+                    usageTopApps = usageTopApps,
+                    usageUpdateTime = usageUpdateTime
+                )
             )
-        )
+        }
     }
 
     // --- Phone usage ---

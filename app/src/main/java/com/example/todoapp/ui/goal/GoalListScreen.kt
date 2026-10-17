@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EditNotifications
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.EditNotifications
 import androidx.compose.material.icons.filled.Checklist
@@ -79,7 +80,8 @@ fun GoalListScreen(
     onTabChange: (Int) -> Unit,
     onGoalClick: (Long) -> Unit,
     onOpenCheckInManage: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit
 ) {
     val goals by goalViewModel.goals.collectAsState()
     var showAddGoalDialog by remember { mutableStateOf(false) }
@@ -95,6 +97,12 @@ fun GoalListScreen(
             TopAppBar(
                 title = { Text(tabTitles[selectedTab]) },
                 actions = {
+                    // 检索入口：仅日志栏显示，位于设置入口左侧
+                    if (selectedTab == 3) {
+                        IconButton(onClick = onOpenSearch) {
+                            Icon(Icons.Filled.Search, contentDescription = "检索")
+                        }
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "设置")
                     }
@@ -341,7 +349,7 @@ private fun GoalCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(horizontal = 16.dp, vertical = if (achieved) 12.dp else 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -363,9 +371,9 @@ private fun GoalCard(
                         )
                     }
                 }
-                // Secondary info: DDL line 1, description line 2 (fixed height for consistency)
-                Column(modifier = Modifier.padding(top = 4.dp).heightIn(min = 36.dp)) {
-                    // Line 1: DDL or achieved time
+                // Secondary info: 未实现=DDL+描述；已实现=DDL（如有）+完成时间，两行统一高度
+                Column(modifier = Modifier.padding(top = 4.dp).heightIn(min = if (achieved) 22.dp else 36.dp)) {
+                    // Line 1: DDL (未实现，带三态颜色) 或 已实现信息行
                     if (goal.ddl != null && !achieved) {
                         val ddlStr = formatDate(goal.ddl)
                         val todayStr = formatDate(System.currentTimeMillis())
@@ -378,10 +386,21 @@ private fun GoalCard(
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     if (achieved && goal.achievedAt != null) {
-                        Text("完成于 ${formatDate(goal.achievedAt)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        // 与"已完成的待办"一致：DDL: x  |  完成时间: y（无 DDL 时只显示完成时间）
+                        val faded = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (goal.ddl != null) {
+                                Text("DDL: ${formatDate(goal.ddl)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = faded, maxLines = 1)
+                                Text("  |  ",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = faded)
+                            }
+                            Text("完成时间: ${formatDate(goal.achievedAt)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = faded, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
                     }
                     // Line 2: description (for unachieved goals)
                     if (!achieved && goal.implementationPath.isNotBlank()) {

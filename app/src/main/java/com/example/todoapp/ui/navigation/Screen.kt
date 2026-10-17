@@ -5,4 +5,5 @@ sealed class Screen {
     data class GoalDetail(val goalId: Long) : Screen()
     data object MyCheckIn : Screen()
     data object Settings : Screen()
+    data object Search : Screen()
 }

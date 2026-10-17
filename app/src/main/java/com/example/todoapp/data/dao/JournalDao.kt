@@ -13,6 +13,9 @@ interface JournalDao {
     @Query("SELECT * FROM journals WHERE date = :date")
     fun getEntry(date: String): Flow<JournalEntry?>
 
+    @Query("SELECT * FROM journals ORDER BY date DESC")
+    fun getAllJournals(): Flow<List<JournalEntry>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: JournalEntry)
 }

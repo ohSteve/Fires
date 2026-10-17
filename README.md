@@ -19,7 +19,7 @@
 | [`v1`](../../releases/tag/v1) | 1.0（versionCode 1） | 2026-07-09 | 初始完成版本（`-final`） |
 | [`v2`](../../releases/tag/v2) | 1.6（versionCode 7） | 2026-10-17 | 当前版本：全局检索、日志数据完整性修复、新增后不可见修复等 |
 
-查看历史版本：`git checkout v1` 或 `git checkout v2`。每个标签的 `apk/` 目录内有对应的可安装 APK。
+当前 `main` 分支为 v2（1.6）。查看历史版本：`git checkout v1` 或 `git checkout v2`。每个标签的 `apk/` 目录内有对应的可安装 APK。
 
 ## 技术栈
 

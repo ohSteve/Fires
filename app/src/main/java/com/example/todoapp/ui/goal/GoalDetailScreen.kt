@@ -2,7 +2,8 @@ package com.example.todoapp.ui.goal
 
 import android.app.DatePickerDialog
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -44,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.todoapp.data.entity.MilestoneEntity
+import com.example.todoapp.ui.components.ReadOnlyTextBlock
 import com.example.todoapp.ui.goal.components.MilestoneSheet
 import com.example.todoapp.ui.goal.components.TimelineView
 import java.text.SimpleDateFormat
@@ -51,7 +53,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun GoalDetailScreen(
     goalId: Long,
@@ -69,6 +71,7 @@ fun GoalDetailScreen(
     var showMilestoneSheet by remember { mutableStateOf(false) }
     var editingMilestone by remember { mutableStateOf<MilestoneEntity?>(null) }
     var showUndoDialog by remember { mutableStateOf(false) }
+    var showClearDdlDialog by remember { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
 
@@ -107,29 +110,41 @@ fun GoalDetailScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Goal name
-            OutlinedTextField(
-                value = nameText,
-                onValueChange = {
-                    nameText = it
-                    viewModel.updateName(it)
-                },
-                label = { Text("目标名称") },
-                singleLine = true,
-                readOnly = achieved,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !achieved
-            )
+            if (achieved) {
+                ReadOnlyTextBlock(
+                    text = nameText,
+                    label = "目标名称",
+                    minHeight = 56.dp,
+                    maxHeight = 120.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = nameText,
+                    onValueChange = {
+                        nameText = it
+                        viewModel.updateName(it)
+                    },
+                    label = { Text("目标名称") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // DDL
+            // DDL：单击修改；已设置时双击弹窗取消
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(
-                        if (!achieved) Modifier.clickable { showDatePicker = true }
-                        else Modifier
+                        if (!achieved) {
+                            Modifier.combinedClickable(
+                                onClick = { showDatePicker = true },
+                                onDoubleClick = if (g.ddl != null) ({ showClearDdlDialog = true }) else null
+                            )
+                        } else Modifier
                     )
                     .padding(vertical = 12.dp)
             ) {
@@ -151,20 +166,28 @@ fun GoalDetailScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Goal description
-            OutlinedTextField(
-                value = pathText,
-                onValueChange = {
-                    pathText = it
-                    viewModel.updateImplementationPath(it)
-                },
-                label = { Text("目标描述") },
-                placeholder = { Text("描述这个目标的具体内容...") },
-                minLines = 3,
-                maxLines = 6,
-                readOnly = achieved,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !achieved
-            )
+            if (achieved) {
+                ReadOnlyTextBlock(
+                    text = pathText,
+                    label = "目标描述",
+                    minHeight = 104.dp,
+                    maxHeight = 176.dp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                OutlinedTextField(
+                    value = pathText,
+                    onValueChange = {
+                        pathText = it
+                        viewModel.updateImplementationPath(it)
+                    },
+                    label = { Text("目标描述") },
+                    placeholder = { Text("描述这个目标的具体内容...") },
+                    minLines = 3,
+                    maxLines = 6,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             Spacer(modifier = Modifier.height(20.dp))
             HorizontalDivider()
@@ -246,6 +269,28 @@ fun GoalDetailScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showUndoDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    // 取消 DDL 确认弹窗（双击 DDL 栏触发）
+    if (showClearDdlDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDdlDialog = false },
+            title = { Text("取消 DDL") },
+            text = { Text("是否取消该目标的 DDL？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.updateDdl(null)
+                    showClearDdlDialog = false
+                }) {
+                    Text("确认")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDdlDialog = false }) {
                     Text("取消")
                 }
             }

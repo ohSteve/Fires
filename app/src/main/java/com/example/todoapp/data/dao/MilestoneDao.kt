@@ -26,4 +26,7 @@ interface MilestoneDao {
 
     @Query("SELECT * FROM milestones WHERE date >= :dayStart AND date < :dayEnd ORDER BY date ASC")
     suspend fun getMilestonesOnDay(dayStart: Long, dayEnd: Long): List<MilestoneEntity>
+
+    @Query("SELECT * FROM milestones")
+    fun getAllMilestones(): Flow<List<MilestoneEntity>>
 }

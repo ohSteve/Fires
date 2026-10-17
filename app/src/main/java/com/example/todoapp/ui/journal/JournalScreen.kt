@@ -3,7 +3,9 @@ package com.example.todoapp.ui.journal
 import android.content.Intent
 import android.provider.Settings
 import android.app.DatePickerDialog
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +24,7 @@ import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -47,8 +51,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.todoapp.ui.components.ReadOnlyTextBlock
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun JournalScreen(viewModel: JournalViewModel) {
     val currentDate by viewModel.currentDate.collectAsState()
@@ -64,13 +69,18 @@ fun JournalScreen(viewModel: JournalViewModel) {
     val topApps by viewModel.topApps.collectAsState()
     val usageUpdateTime by viewModel.usageUpdateTime.collectAsState()
     val canEdit by viewModel.canEdit.collectAsState()
+    val pastEditUnlocked by viewModel.pastEditUnlocked.collectAsState()
     val canUpdateUsage by viewModel.canUpdateUsage.collectAsState()
 
     val context = LocalContext.current
     val today = JournalViewModel.todayString()
     val isToday = currentDate == today
+    // 当天正常可编辑；今日之前的日期需双击确认后临时解锁；未来日期始终锁定
+    val manualEditable = canEdit || pastEditUnlocked
+    val canUnlockPast = !manualEditable && currentDate < today
     var isRefreshing by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showUnlockDialog by remember(currentDate) { mutableStateOf(false) }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
@@ -93,7 +103,17 @@ fun JournalScreen(viewModel: JournalViewModel) {
                 text = if (isToday) "今日日志" else JournalViewModel.formatDisplayDate(currentDate),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f).clickable { showDatePicker = true },
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        // 非当天时：单击打开日历选择日期，双击直接回到今日
+                        if (!isToday) {
+                            Modifier.combinedClickable(
+                                onClick = { showDatePicker = true },
+                                onDoubleClick = { viewModel.goToToday() }
+                            )
+                        } else Modifier.clickable { showDatePicker = true }
+                    ),
                 textAlign = TextAlign.Center
             )
             IconButton(onClick = { viewModel.selectDate(shiftDate(currentDate, 1)) }) {
@@ -173,38 +193,50 @@ fun JournalScreen(viewModel: JournalViewModel) {
                 Text("今天还干了啥", style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = notes,
-                    onValueChange = { if (canEdit) viewModel.updateNotes(it) },
-                    placeholder = if (canEdit) {
-                        { Text("今天还做了哪些事、有什么收获...") }
-                    } else null,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                    ),
-                    minLines = 2, maxLines = 5,
-                    readOnly = !canEdit, enabled = canEdit,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (manualEditable) {
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { viewModel.updateNotes(it) },
+                        placeholder = { Text("今天还做了哪些事、有什么收获...") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        ),
+                        minLines = 2, maxLines = 5,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    ReadOnlyTextBlock(
+                        text = notes,
+                        onDoubleTap = if (canUnlockPast) ({ showUnlockDialog = true }) else null,
+                        minHeight = 80.dp, maxHeight = 152.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text("娱乐项目", style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(6.dp))
-                OutlinedTextField(
-                    value = entertainment,
-                    onValueChange = { if (canEdit) viewModel.updateEntertainment(it) },
-                    placeholder = if (canEdit) {
-                        { Text("今天玩了什么游戏、看了什么视频...") }
-                    } else null,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-                    ),
-                    minLines = 2, maxLines = 5,
-                    readOnly = !canEdit, enabled = canEdit,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (manualEditable) {
+                    OutlinedTextField(
+                        value = entertainment,
+                        onValueChange = { viewModel.updateEntertainment(it) },
+                        placeholder = { Text("今天玩了什么游戏、看了什么视频...") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
+                        ),
+                        minLines = 2, maxLines = 5,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    ReadOnlyTextBlock(
+                        text = entertainment,
+                        onDoubleTap = if (canUnlockPast) ({ showUnlockDialog = true }) else null,
+                        minHeight = 80.dp, maxHeight = 152.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -213,12 +245,12 @@ fun JournalScreen(viewModel: JournalViewModel) {
                 ) {
                     Checkbox(
                         checked = instantGratification,
-                        onCheckedChange = { if (canEdit) viewModel.updateInstantGratification(it) },
-                        enabled = canEdit
+                        onCheckedChange = { if (manualEditable) viewModel.updateInstantGratification(it) },
+                        enabled = manualEditable
                     )
                     Text("是否进行了「及时满足型娱乐」",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (canEdit) MaterialTheme.colorScheme.onSurface
+                        color = if (manualEditable) MaterialTheme.colorScheme.onSurface
                                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 }
 
@@ -305,6 +337,11 @@ fun JournalScreen(viewModel: JournalViewModel) {
                     Text("请在当日内完成编辑，过后无法修改。",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                } else if (pastEditUnlocked) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("已临时解锁，切换日期后将重新锁定。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
@@ -318,6 +355,27 @@ fun JournalScreen(viewModel: JournalViewModel) {
                 )
             }
         }
+    }
+
+    if (showUnlockDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnlockDialog = false },
+            title = { Text("解锁编辑") },
+            text = { Text("是否解锁编辑？") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.unlockPastEditing()
+                    showUnlockDialog = false
+                }) {
+                    Text("确认")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnlockDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 
     if (showDatePicker) {
